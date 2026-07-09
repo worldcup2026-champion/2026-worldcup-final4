@@ -334,31 +334,53 @@
     if (team) openModal(team);
   }
 
+  function renderBettorList(entries, emptyText) {
+    const list = document.getElementById("modal-list");
+    list.innerHTML = "";
+
+    if (!entries.length) {
+      list.innerHTML = `<div class="empty-note">${emptyText}</div>`;
+      return;
+    }
+    const medals = ["🥇", "🥈", "🥉"];
+    entries.forEach((b, i) => {
+      const li = document.createElement("li");
+      li.style.animationDelay = (i * 0.04) + "s";
+      li.innerHTML = `
+        <div class="rank">${medals[i] || i + 1}</div>
+        <div class="b-name">${escapeHtml(b.name)}${b.teamLabel ? `<span class="b-team">${b.teamLabel}</span>` : ""}${b.note ? `<span class="b-note">${escapeHtml(b.note)}</span>` : ""}</div>
+        <div class="b-amount">${fmtMoney(b.amount)}</div>
+      `;
+      list.appendChild(li);
+    });
+  }
+
   function openModal(team) {
     document.getElementById("modal-flag").textContent = flagEmoji(team.code);
     document.getElementById("modal-name").textContent = team.name;
     document.getElementById("modal-sub").textContent =
       `${team.backers.length} 人下注・總金額 ${fmtMoney(team.total)}`;
 
-    const list = document.getElementById("modal-list");
-    list.innerHTML = "";
+    renderBettorList(team.backers, "目前還沒有人下注這隊");
+    document.getElementById("modal-overlay").classList.add("show");
+  }
 
-    if (!team.backers.length) {
-      list.innerHTML = `<div class="empty-note">目前還沒有人下注這隊</div>`;
-    } else {
-      const medals = ["🥇", "🥈", "🥉"];
-      team.backers.forEach((b, i) => {
-        const li = document.createElement("li");
-        li.style.animationDelay = (i * 0.05) + "s";
-        li.innerHTML = `
-          <div class="rank">${medals[i] || i + 1}</div>
-          <div class="b-name">${escapeHtml(b.name)}${b.note ? `<span class="b-note">${escapeHtml(b.note)}</span>` : ""}</div>
-          <div class="b-amount">${fmtMoney(b.amount)}</div>
-        `;
-        list.appendChild(li);
+  function openOverviewModal() {
+    if (!lastAgg) return;
+    const allBets = [];
+    lastAgg.teams.forEach((team) => {
+      team.backers.forEach((b) => {
+        allBets.push({ ...b, teamLabel: `${flagEmoji(team.code)} ${escapeHtml(team.name)}` });
       });
-    }
+    });
+    allBets.sort((a, b) => b.amount - a.amount);
 
+    document.getElementById("modal-flag").textContent = "🏆";
+    document.getElementById("modal-name").textContent = "全部下注總覽";
+    document.getElementById("modal-sub").textContent =
+      `${lastAgg.participants} 人參與・${lastAgg.totalBets} 筆投注・總金額 ${fmtMoney(lastAgg.totalAmount)}`;
+
+    renderBettorList(allBets, "目前還沒有人下注");
     document.getElementById("modal-overlay").classList.add("show");
   }
 
@@ -423,6 +445,15 @@
     refreshTimer = setInterval(loadBetsAndRender, AUTO_REFRESH_MS);
 
     document.getElementById("refresh-btn").addEventListener("click", loadBetsAndRender);
+    document.querySelectorAll(".stats .stat-card").forEach((card) => {
+      card.addEventListener("click", openOverviewModal);
+      card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openOverviewModal();
+        }
+      });
+    });
     document.getElementById("modal-close").addEventListener("click", closeModal);
     document.getElementById("modal-overlay").addEventListener("click", (e) => {
       if (e.target.id === "modal-overlay") closeModal();
