@@ -1,0 +1,13 @@
+{
+  "title": "2026 世界盃冠軍預測",
+  "subtitle": "四強對決・誰與爭鋒？",
+  "deadlineISO": "2026-07-20T00:00:00+08:00",
+  "currencyPrefix": "NT$ ",
+  "csvUrl": "data/bets.csv",
+  "teams": [
+    { "id": "FRA", "name": "法國",   "code": "FR", "colorFrom": "#4B6CB7", "colorTo": "#182848" },
+    { "id": "ESP", "name": "西班牙", "code": "ES", "colorFrom": "#AA151B", "colorTo": "#F1BF00" },
+    { "id": "NOR", "name": "挪威",   "code": "NO", "colorFrom": "#EF2B2D", "colorTo": "#002868" },
+    { "id": "ARG", "name": "阿根廷", "code": "AR", "colorFrom": "#75AADB", "colorTo": "#1B3B6F" }
+  ]
+}
