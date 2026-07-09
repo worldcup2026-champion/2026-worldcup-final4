@@ -306,7 +306,9 @@
     const container = document.getElementById("legend");
     container.innerHTML = "";
 
-    agg.teams.forEach((team) => {
+    const sortedTeams = [...agg.teams].sort((a, b) => b.total - a.total);
+
+    sortedTeams.forEach((team) => {
       const pct = agg.totalAmount > 0 ? (team.total / agg.totalAmount) * 100 : 0;
       const chip = document.createElement("button");
       chip.className = "legend-chip";
