@@ -3,10 +3,16 @@
 
   const CONFIG_URL = "data/config.json";
   const AUTO_REFRESH_MS = 60000;
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const R = 80;
+  const CIRC = 2 * Math.PI * R;
 
   let config = null;
   let countdownTimer = null;
   let refreshTimer = null;
+  let lastAgg = null;
+  let chartArcs = {}; // teamId -> <circle>
+  let prevUnitText = {};
 
   // ---------- CSV parsing (supports quoted fields with commas/newlines) ----------
   function parseCSV(text) {
@@ -71,7 +77,79 @@
     return prefix + Math.round(n).toLocaleString("en-US");
   }
 
+  function hexToRgba(hex, alpha) {
+    const h = (hex || "").replace("#", "");
+    const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+    const num = parseInt(full, 16);
+    if (isNaN(num)) return `rgba(255,255,255,${alpha})`;
+    const r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  // ---------- Number count-up animation ----------
+  function animateValue(el, to, opts) {
+    opts = opts || {};
+    const duration = opts.duration || 800;
+    const prefix = opts.prefix || "";
+    const from = parseFloat(el.dataset.rawValue || "0") || 0;
+    el.dataset.rawValue = String(to);
+    const start = performance.now();
+
+    function step(now) {
+      const p = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const val = from + (to - from) * eased;
+      el.textContent = prefix + Math.round(val).toLocaleString("en-US");
+      if (p < 1) requestAnimationFrame(step);
+      else el.textContent = prefix + Math.round(to).toLocaleString("en-US");
+    }
+    requestAnimationFrame(step);
+  }
+
+  // ---------- Ambient particles ----------
+  function createParticles() {
+    const container = document.getElementById("particles");
+    const colors = [
+      "rgba(255,199,44,0.8)",
+      "rgba(11,179,122,0.8)",
+      "rgba(61,125,216,0.8)",
+      "rgba(228,87,46,0.7)",
+      "rgba(255,255,255,0.6)",
+    ];
+    const count = 26;
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement("span");
+      p.className = "particle";
+      const size = 2 + Math.random() * 4;
+      const duration = 10 + Math.random() * 14;
+      const delay = -Math.random() * duration;
+      const drift = (Math.random() * 80 - 40).toFixed(0) + "px";
+      p.style.left = Math.random() * 100 + "%";
+      p.style.width = size + "px";
+      p.style.height = size + "px";
+      p.style.background = colors[Math.floor(Math.random() * colors.length)];
+      p.style.animationDuration = duration + "s";
+      p.style.animationDelay = delay + "s";
+      p.style.setProperty("--drift", drift);
+      container.appendChild(p);
+    }
+  }
+
   // ---------- Countdown ----------
+  function setUnit(id, value) {
+    const el = document.getElementById(id);
+    const text = String(value).padStart(2, "0");
+    if (prevUnitText[id] !== undefined && prevUnitText[id] !== text) {
+      const unitEl = el.closest(".unit");
+      unitEl.classList.remove("bump");
+      // eslint-disable-next-line no-unused-expressions
+      void unitEl.offsetWidth; // restart animation
+      unitEl.classList.add("bump");
+    }
+    prevUnitText[id] = text;
+    el.textContent = text;
+  }
+
   function startCountdown(deadlineISO) {
     const deadline = new Date(deadlineISO).getTime();
     document.getElementById("deadline-label").textContent = new Date(deadline).toLocaleString("zh-TW", {
@@ -87,9 +165,7 @@
       if (diff <= 0) {
         closedBanner.classList.add("show");
         countdownEl.style.opacity = "0.4";
-        ["cd-days", "cd-hours", "cd-mins", "cd-secs"].forEach((id) => {
-          document.getElementById(id).textContent = "00";
-        });
+        ["cd-days", "cd-hours", "cd-mins", "cd-secs"].forEach((id) => setUnit(id, 0));
         if (countdownTimer) clearInterval(countdownTimer);
         return;
       }
@@ -98,15 +174,10 @@
       countdownEl.style.opacity = "1";
 
       const s = Math.floor(diff / 1000);
-      const days = Math.floor(s / 86400);
-      const hours = Math.floor((s % 86400) / 3600);
-      const mins = Math.floor((s % 3600) / 60);
-      const secs = s % 60;
-
-      document.getElementById("cd-days").textContent = String(days).padStart(2, "0");
-      document.getElementById("cd-hours").textContent = String(hours).padStart(2, "0");
-      document.getElementById("cd-mins").textContent = String(mins).padStart(2, "0");
-      document.getElementById("cd-secs").textContent = String(secs).padStart(2, "0");
+      setUnit("cd-days", Math.floor(s / 86400));
+      setUnit("cd-hours", Math.floor((s % 86400) / 3600));
+      setUnit("cd-mins", Math.floor((s % 3600) / 60));
+      setUnit("cd-secs", s % 60);
     }
 
     if (countdownTimer) clearInterval(countdownTimer);
@@ -150,11 +221,11 @@
     return { teams, unmatched, participants: participants.size, totalAmount, totalBets };
   }
 
-  // ---------- Rendering ----------
+  // ---------- Rendering: stats ----------
   function renderStats(agg) {
-    document.getElementById("stat-participants").textContent = agg.participants.toLocaleString("en-US");
-    document.getElementById("stat-bets").textContent = agg.totalBets.toLocaleString("en-US");
-    document.getElementById("stat-total").textContent = fmtMoney(agg.totalAmount);
+    animateValue(document.getElementById("stat-participants"), agg.participants);
+    animateValue(document.getElementById("stat-bets"), agg.totalBets);
+    animateValue(document.getElementById("stat-total"), agg.totalAmount, { prefix: config.currencyPrefix || "" });
   }
 
   function renderWarnings(agg) {
@@ -172,32 +243,93 @@
     el.classList.add("show");
   }
 
-  function renderTeams(agg) {
-    const container = document.getElementById("teams");
+  // ---------- Rendering: donut chart ----------
+  function setupChart(teams) {
+    const defs = document.getElementById("donut-defs");
+    const arcsGroup = document.getElementById("donut-arcs");
+    defs.innerHTML = "";
+    arcsGroup.innerHTML = "";
+    chartArcs = {};
+
+    teams.forEach((team) => {
+      const gradId = "grad-" + team.id;
+      const lg = document.createElementNS(SVG_NS, "linearGradient");
+      lg.setAttribute("id", gradId);
+      lg.setAttribute("x1", "0%");
+      lg.setAttribute("y1", "0%");
+      lg.setAttribute("x2", "100%");
+      lg.setAttribute("y2", "100%");
+      const stop1 = document.createElementNS(SVG_NS, "stop");
+      stop1.setAttribute("offset", "0%");
+      stop1.setAttribute("stop-color", team.colorFrom || "#0bb37a");
+      const stop2 = document.createElementNS(SVG_NS, "stop");
+      stop2.setAttribute("offset", "100%");
+      stop2.setAttribute("stop-color", team.colorTo || "#061a12");
+      lg.appendChild(stop1);
+      lg.appendChild(stop2);
+      defs.appendChild(lg);
+
+      const circle = document.createElementNS(SVG_NS, "circle");
+      circle.setAttribute("class", "arc-slice");
+      circle.setAttribute("cx", "100");
+      circle.setAttribute("cy", "100");
+      circle.setAttribute("r", String(R));
+      circle.setAttribute("stroke", `url(#${gradId})`);
+      circle.setAttribute("stroke-dasharray", `0 ${CIRC}`);
+      circle.setAttribute("stroke-dashoffset", "0");
+      circle.style.setProperty("--glow-color", team.colorFrom || "#0bb37a");
+      circle.addEventListener("click", () => openModalById(team.id));
+      arcsGroup.appendChild(circle);
+      chartArcs[team.id] = circle;
+    });
+  }
+
+  function updateChart(agg) {
+    const total = agg.totalAmount;
+    let cumulative = 0;
+    agg.teams.forEach((team) => {
+      const circle = chartArcs[team.id];
+      if (!circle) return;
+      const frac = total > 0 ? team.total / total : 0;
+      const len = frac * CIRC;
+      const gap = frac > 0 ? 3 : 0;
+      const segLen = Math.max(len - gap, 0);
+      circle.setAttribute("stroke-dasharray", `${segLen} ${CIRC - segLen}`);
+      circle.setAttribute("stroke-dashoffset", String(-cumulative));
+      cumulative += len;
+    });
+    animateValue(document.getElementById("donut-total"), total, { prefix: config.currencyPrefix || "" });
+  }
+
+  // ---------- Rendering: legend ----------
+  function renderLegend(agg) {
+    const container = document.getElementById("legend");
     container.innerHTML = "";
 
     agg.teams.forEach((team) => {
       const pct = agg.totalAmount > 0 ? (team.total / agg.totalAmount) * 100 : 0;
-      const card = document.createElement("button");
-      card.className = "team-card";
-      card.style.setProperty("--tf", team.colorFrom || "#0bb37a");
-      card.style.setProperty("--tt", team.colorTo || "#061a12");
-      card.innerHTML = `
-        <div class="top-row">
-          <div class="flag">${flagEmoji(team.code)}</div>
-          <div>
-            <div class="name">${team.name}</div>
-            <div class="backers-count">${team.backers.length} 人下注</div>
-          </div>
-        </div>
-        <div class="amount">${fmtMoney(team.total)}</div>
-        <div class="share-bar"><div style="width:${pct.toFixed(1)}%"></div></div>
-        <div class="share-pct">佔總金額 ${pct.toFixed(1)}%</div>
-        <div class="tap-hint">👉 點擊查看下注名單</div>
+      const chip = document.createElement("button");
+      chip.className = "legend-chip";
+      chip.style.setProperty("--tc", team.colorFrom || "#0bb37a");
+      chip.style.setProperty("--tc-glow", hexToRgba(team.colorFrom, 0.4));
+      chip.innerHTML = `
+        <span class="chip-flag">${flagEmoji(team.code)}</span>
+        <span class="chip-info">
+          <span class="chip-name">${escapeHtml(team.name)}</span>
+          <span class="chip-meta">${team.backers.length} 人下注・佔 ${pct.toFixed(1)}%</span>
+        </span>
+        <span class="chip-amount">${fmtMoney(team.total)}</span>
       `;
-      card.addEventListener("click", () => openModal(team));
-      container.appendChild(card);
+      chip.addEventListener("click", () => openModal(team));
+      container.appendChild(chip);
     });
+  }
+
+  // ---------- Modal ----------
+  function openModalById(teamId) {
+    if (!lastAgg) return;
+    const team = lastAgg.teams.find((t) => t.id === teamId);
+    if (team) openModal(team);
   }
 
   function openModal(team) {
@@ -215,6 +347,7 @@
       const medals = ["🥇", "🥈", "🥉"];
       team.backers.forEach((b, i) => {
         const li = document.createElement("li");
+        li.style.animationDelay = (i * 0.05) + "s";
         li.innerHTML = `
           <div class="rank">${medals[i] || i + 1}</div>
           <div class="b-name">${escapeHtml(b.name)}${b.note ? `<span class="b-note">${escapeHtml(b.note)}</span>` : ""}</div>
@@ -246,10 +379,12 @@
       const text = await res.text();
       const bets = csvToObjects(text);
       const agg = aggregate(bets);
+      lastAgg = agg;
 
       renderStats(agg);
       renderWarnings(agg);
-      renderTeams(agg);
+      updateChart(agg);
+      renderLegend(agg);
 
       const now = new Date();
       document.getElementById("updated-text").textContent =
@@ -263,6 +398,8 @@
   }
 
   async function init() {
+    createParticles();
+
     try {
       const res = await fetch(CONFIG_URL + "?t=" + Date.now(), { cache: "no-store" });
       config = await res.json();
@@ -276,6 +413,7 @@
     document.getElementById("page-subtitle").textContent = config.subtitle || "";
     document.title = config.title || document.title;
 
+    setupChart(config.teams);
     startCountdown(config.deadlineISO);
     await loadBetsAndRender();
 
