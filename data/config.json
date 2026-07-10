@@ -9,7 +9,6 @@
     { "id": "ESP", "name": "西班牙", "code": "ES", "colorFrom": "#AA151B", "colorTo": "#F1BF00" },
     { "id": "NOR", "name": "挪威",   "code": "NO", "colorFrom": "#EF2B2D", "colorTo": "#002868" },
     { "id": "ARG", "name": "阿根廷", "code": "AR", "colorFrom": "#75AADB", "colorTo": "#1B3B6F" },
-    { "id": "MAR", "name": "摩洛哥", "code": "MA", "colorFrom": "#C1272D", "colorTo": "#006233" },
     { "id": "BEL", "name": "比利時", "code": "BE", "colorFrom": "#FDDA24", "colorTo": "#ED2939" },
     { "id": "ENG", "name": "英格蘭", "code": "GB", "colorFrom": "#CE1124", "colorTo": "#002147" },
     { "id": "SUI", "name": "瑞士",   "code": "CH", "colorFrom": "#FF3B30", "colorTo": "#8B0000" }
