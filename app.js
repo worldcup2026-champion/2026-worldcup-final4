@@ -13,6 +13,7 @@
   let lastAgg = null;
   let chartArcs = {}; // teamId -> <circle>
   let prevUnitText = {};
+  let overviewBets = []; // flattened bets for the overview modal, with filters applied on top
 
   // ---------- CSV parsing (supports quoted fields with commas/newlines) ----------
   function parseCSV(text) {
@@ -356,6 +357,7 @@
   }
 
   function openModal(team) {
+    document.getElementById("modal-filters").classList.remove("show");
     document.getElementById("modal-flag").textContent = flagEmoji(team.code);
     document.getElementById("modal-name").textContent = team.name;
     document.getElementById("modal-sub").textContent =
@@ -365,22 +367,46 @@
     document.getElementById("modal-overlay").classList.add("show");
   }
 
+  function populateTeamFilterOptions() {
+    const select = document.getElementById("filter-team");
+    const options = ['<option value="">全部國家</option>'].concat(
+      config.teams.map((t) => `<option value="${t.id}">${flagEmoji(t.code)} ${escapeHtml(t.name)}</option>`)
+    );
+    select.innerHTML = options.join("");
+  }
+
+  function applyOverviewFilters() {
+    const nameQuery = document.getElementById("filter-name").value.trim().toLowerCase();
+    const teamId = document.getElementById("filter-team").value;
+
+    const filtered = overviewBets
+      .filter((b) => (!nameQuery || b.name.toLowerCase().includes(nameQuery)) && (!teamId || b.teamId === teamId))
+      .sort((a, b) => b.amount - a.amount);
+
+    const uniqueNames = new Set(filtered.map((b) => b.name.trim().toLowerCase())).size;
+    const sum = filtered.reduce((s, b) => s + b.amount, 0);
+    document.getElementById("modal-sub").textContent =
+      `${uniqueNames} 人・${filtered.length} 筆投注・總金額 ${fmtMoney(sum)}`;
+
+    renderBettorList(filtered, nameQuery || teamId ? "沒有符合條件的下注紀錄" : "目前還沒有人下注");
+  }
+
   function openOverviewModal() {
     if (!lastAgg) return;
-    const allBets = [];
+    overviewBets = [];
     lastAgg.teams.forEach((team) => {
       team.backers.forEach((b) => {
-        allBets.push({ ...b, teamLabel: `${flagEmoji(team.code)} ${escapeHtml(team.name)}` });
+        overviewBets.push({ ...b, teamId: team.id, teamLabel: `${flagEmoji(team.code)} ${escapeHtml(team.name)}` });
       });
     });
-    allBets.sort((a, b) => b.amount - a.amount);
 
     document.getElementById("modal-flag").textContent = "🏆";
     document.getElementById("modal-name").textContent = "全部下注總覽";
-    document.getElementById("modal-sub").textContent =
-      `${lastAgg.participants} 人參與・${lastAgg.totalBets} 筆投注・總金額 ${fmtMoney(lastAgg.totalAmount)}`;
+    document.getElementById("filter-name").value = "";
+    document.getElementById("filter-team").value = "";
+    document.getElementById("modal-filters").classList.add("show");
 
-    renderBettorList(allBets, "目前還沒有人下注");
+    applyOverviewFilters();
     document.getElementById("modal-overlay").classList.add("show");
   }
 
@@ -438,12 +464,15 @@
     document.title = config.title || document.title;
 
     setupChart(config.teams);
+    populateTeamFilterOptions();
     startCountdown(config.deadlineISO);
     await loadBetsAndRender();
 
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(loadBetsAndRender, AUTO_REFRESH_MS);
 
+    document.getElementById("filter-name").addEventListener("input", applyOverviewFilters);
+    document.getElementById("filter-team").addEventListener("change", applyOverviewFilters);
     document.getElementById("refresh-btn").addEventListener("click", loadBetsAndRender);
     document.querySelectorAll(".stats .stat-card").forEach((card) => {
       card.addEventListener("click", openOverviewModal);
