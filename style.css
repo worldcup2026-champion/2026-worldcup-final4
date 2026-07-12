@@ -468,11 +468,13 @@ body {
 }
 
 .flag-svg {
-  width: 1.3em;
-  height: 0.87em;
+  display: inline-block;
+  width: 1em;
+  height: 1em;
   vertical-align: -0.15em;
-  border-radius: 2px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.4);
   flex-shrink: 0;
 }
 
