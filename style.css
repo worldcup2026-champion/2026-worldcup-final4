@@ -467,6 +467,15 @@ body {
   flex-shrink: 0;
 }
 
+.flag-svg {
+  width: 1.3em;
+  height: 0.87em;
+  vertical-align: -0.15em;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
+}
+
 .legend-chip .chip-info {
   flex: 1;
   display: flex;
