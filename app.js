@@ -375,12 +375,33 @@
     select.innerHTML = options.join("");
   }
 
+  // CSV notes are written as "5.法國PK賽贏，英格蘭亞軍" (leading "N." index).
+  // Strip that prefix so filtering matches on the condition text itself,
+  // regardless of whether the number is present/typo'd.
+  function normalizeNote(str) {
+    return (str || "").trim().replace(/^\d+\.\s*/, "");
+  }
+
+  function populateNoteFilterOptions() {
+    const select = document.getElementById("filter-note");
+    const noteOptions = config.noteOptions || [];
+    const options = ['<option value="">全部投注條件</option>'].concat(
+      noteOptions.map((n, i) => `<option value="${escapeHtml(n)}">${i + 1}. ${escapeHtml(n)}</option>`)
+    );
+    select.innerHTML = options.join("");
+  }
+
   function applyOverviewFilters() {
     const nameQuery = document.getElementById("filter-name").value.trim().toLowerCase();
     const teamId = document.getElementById("filter-team").value;
+    const note = document.getElementById("filter-note").value;
 
     const filtered = overviewBets
-      .filter((b) => (!nameQuery || b.name.toLowerCase().includes(nameQuery)) && (!teamId || b.teamId === teamId))
+      .filter((b) =>
+        (!nameQuery || b.name.toLowerCase().includes(nameQuery)) &&
+        (!teamId || b.teamId === teamId) &&
+        (!note || normalizeNote(b.note) === note)
+      )
       .sort((a, b) => b.amount - a.amount);
 
     const uniqueNames = new Set(filtered.map((b) => b.name.trim().toLowerCase())).size;
@@ -388,7 +409,7 @@
     document.getElementById("modal-sub").textContent =
       `${uniqueNames} 人・${filtered.length} 筆投注・總金額 ${fmtMoney(sum)}`;
 
-    renderBettorList(filtered, nameQuery || teamId ? "沒有符合條件的下注紀錄" : "目前還沒有人下注");
+    renderBettorList(filtered, nameQuery || teamId || note ? "沒有符合條件的下注紀錄" : "目前還沒有人下注");
   }
 
   function openOverviewModal() {
@@ -404,6 +425,7 @@
     document.getElementById("modal-name").textContent = "全部下注總覽";
     document.getElementById("filter-name").value = "";
     document.getElementById("filter-team").value = "";
+    document.getElementById("filter-note").value = "";
     document.getElementById("modal-filters").classList.add("show");
 
     applyOverviewFilters();
@@ -465,6 +487,7 @@
 
     setupChart(config.teams);
     populateTeamFilterOptions();
+    populateNoteFilterOptions();
     startCountdown(config.deadlineISO);
     await loadBetsAndRender();
 
@@ -473,6 +496,7 @@
 
     document.getElementById("filter-name").addEventListener("input", applyOverviewFilters);
     document.getElementById("filter-team").addEventListener("change", applyOverviewFilters);
+    document.getElementById("filter-note").addEventListener("change", applyOverviewFilters);
     document.getElementById("refresh-btn").addEventListener("click", loadBetsAndRender);
     document.querySelectorAll(".stats .stat-card").forEach((card) => {
       card.addEventListener("click", openOverviewModal);
