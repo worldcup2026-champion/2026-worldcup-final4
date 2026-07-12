@@ -66,22 +66,32 @@
   }
 
   // ---------- Flag emoji from ISO alpha-2 code ----------
-  // UK home nations don't have their own ISO alpha-2 code, so a regular
-  // regional-indicator flag can't represent them (that would just be the
-  // Union Jack). Use the Unicode subdivision tag-sequence flags instead.
-  const SPECIAL_FLAGS = {
-    ENG: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}", // England: St George's Cross
-    SCT: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}", // Scotland: Saltire
-    WAL: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0077}\u{E006C}\u{E0073}\u{E007F}", // Wales: Y Ddraig Goch
-  };
-
   function flagEmoji(code) {
-    if (!code) return "🏳️";
-    if (SPECIAL_FLAGS[code.toUpperCase()]) return SPECIAL_FLAGS[code.toUpperCase()];
-    if (code.length !== 2) return "🏳️";
+    if (!code || code.length !== 2) return "🏳️";
     return code
       .toUpperCase()
       .replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0)));
+  }
+
+  // UK home nations don't have their own ISO alpha-2 code, and the Unicode
+  // subdivision "tag sequence" flags (e.g. England's) render as a blank
+  // black flag on many systems (Windows, older macOS/Android) since font
+  // support is inconsistent. Draw them as inline SVG instead so they look
+  // right everywhere. Only usable where markup is inserted via innerHTML
+  // (not .textContent, and not inside a native <select><option>).
+  const SPECIAL_FLAG_SVG = {
+    ENG:
+      '<svg class="flag-svg" viewBox="0 0 30 20" xmlns="http://www.w3.org/2000/svg" aria-label="England">' +
+      '<rect width="30" height="20" fill="#fff"/>' +
+      '<rect x="12" width="6" height="20" fill="#CE1124"/>' +
+      '<rect y="7" width="30" height="6" fill="#CE1124"/>' +
+      "</svg>",
+  };
+
+  function flagMarkup(code) {
+    const upper = (code || "").toUpperCase();
+    if (SPECIAL_FLAG_SVG[upper]) return SPECIAL_FLAG_SVG[upper];
+    return flagEmoji(code);
   }
 
   function fmtMoney(n) {
@@ -327,7 +337,7 @@
       chip.style.setProperty("--tc", team.colorFrom || "#0bb37a");
       chip.style.setProperty("--tc-glow", hexToRgba(team.colorFrom, 0.4));
       chip.innerHTML = `
-        <span class="chip-flag">${flagEmoji(team.code)}</span>
+        <span class="chip-flag">${flagMarkup(team.code)}</span>
         <span class="chip-info">
           <span class="chip-name">${escapeHtml(team.name)}</span>
           <span class="chip-meta">${team.backers.length} 人下注・佔 ${pct.toFixed(1)}%</span>
@@ -369,7 +379,7 @@
 
   function openModal(team) {
     document.getElementById("modal-filters").classList.remove("show");
-    document.getElementById("modal-flag").textContent = flagEmoji(team.code);
+    document.getElementById("modal-flag").innerHTML = flagMarkup(team.code);
     document.getElementById("modal-name").textContent = team.name;
     document.getElementById("modal-sub").textContent =
       `${team.backers.length} 人下注・總金額 ${fmtMoney(team.total)}`;
@@ -421,7 +431,7 @@
     overviewBets = [];
     lastAgg.teams.forEach((team) => {
       team.backers.forEach((b) => {
-        overviewBets.push({ ...b, teamId: team.id, teamLabel: `${flagEmoji(team.code)} ${escapeHtml(team.name)}` });
+        overviewBets.push({ ...b, teamId: team.id, teamLabel: `${flagMarkup(team.code)} ${escapeHtml(team.name)}` });
       });
     });
 
