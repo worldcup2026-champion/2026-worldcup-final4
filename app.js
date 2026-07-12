@@ -66,67 +66,20 @@
   }
 
   // ---------- Flag emoji from ISO alpha-2 code ----------
+  // UK home nations don't have their own ISO alpha-2 code, so a regular
+  // regional-indicator flag can't represent them (that would just be the
+  // Union Jack). Use the Unicode subdivision tag-sequence flag instead.
+  const SPECIAL_FLAGS = {
+    ENG: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}", // England: St George's Cross
+  };
+
   function flagEmoji(code) {
-    if (!code || code.length !== 2) return "🏳️";
+    if (!code) return "🏳️";
+    if (SPECIAL_FLAGS[code.toUpperCase()]) return SPECIAL_FLAGS[code.toUpperCase()];
+    if (code.length !== 2) return "🏳️";
     return code
       .toUpperCase()
       .replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0)));
-  }
-
-  // UK home nations don't have their own ISO alpha-2 code, and the Unicode
-  // subdivision "tag sequence" flags (e.g. England's) render as a blank
-  // black flag on many systems (Windows, older macOS/Android) since font
-  // support is inconsistent. Draw them as inline SVG instead so they look
-  // right everywhere. Only usable where markup is inserted via innerHTML
-  // (not .textContent, and not inside a native <select><option>).
-  //
-  // Real flag emoji are drawn as a fluttering ribbon (rounded pole-side
-  // edge, wavy outer edge, diagonal sheen) rather than a flat square, so
-  // the hand-drawn ones need the same silhouette to sit naturally next to
-  // them. Each call gets a fresh clipPath/gradient id since this markup
-  // can be inserted multiple times on the page at once.
-  let flagUid = 0;
-  const WAVE_CLIP_D =
-    "M7,4 L32,4 C32.29,4.67 33.36,6.67 33.72,8 C34.08,9.33 34.27,10.67 34.14,12 " +
-    "C34.02,13.33 33.47,14.67 32.95,16 C32.44,17.33 31.56,18.67 31.05,20 " +
-    "C30.53,21.33 29.98,22.67 29.86,24 C29.73,25.33 29.92,26.67 30.28,28 " +
-    "C30.64,29.33 31.71,31.33 32,32 L7,32 C5,32 4,31 4,29 L4,7 C4,5 5,4 7,4 Z";
-
-  function wavingFlagSvg(label, draw) {
-    const uid = flagUid++;
-    const clipId = "flag-clip-" + uid;
-    const sheenId = "flag-sheen-" + uid;
-    return (
-      `<svg class="flag-svg" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" aria-label="${label}">` +
-      `<defs><clipPath id="${clipId}"><path d="${WAVE_CLIP_D}"/></clipPath>` +
-      `<linearGradient id="${sheenId}" x1="0%" y1="0%" x2="100%" y2="100%">` +
-      '<stop offset="0%" stop-color="#fff" stop-opacity="0.35"/>' +
-      '<stop offset="45%" stop-color="#fff" stop-opacity="0"/>' +
-      '<stop offset="75%" stop-color="#000" stop-opacity="0"/>' +
-      '<stop offset="100%" stop-color="#000" stop-opacity="0.18"/>' +
-      "</linearGradient></defs>" +
-      `<g clip-path="url(#${clipId})">` +
-      draw() +
-      `<rect width="36" height="36" fill="url(#${sheenId})"/>` +
-      "</g></svg>"
-    );
-  }
-
-  const SPECIAL_FLAG_SVG = {
-    ENG: () =>
-      wavingFlagSvg(
-        "England",
-        () =>
-          '<rect width="36" height="36" fill="#fff"/>' +
-          '<rect x="14" width="8" height="36" fill="#CE1124"/>' +
-          '<rect y="14" width="36" height="8" fill="#CE1124"/>'
-      ),
-  };
-
-  function flagMarkup(code) {
-    const upper = (code || "").toUpperCase();
-    if (SPECIAL_FLAG_SVG[upper]) return SPECIAL_FLAG_SVG[upper]();
-    return flagEmoji(code);
   }
 
   function fmtMoney(n) {
@@ -372,7 +325,7 @@
       chip.style.setProperty("--tc", team.colorFrom || "#0bb37a");
       chip.style.setProperty("--tc-glow", hexToRgba(team.colorFrom, 0.4));
       chip.innerHTML = `
-        <span class="chip-flag">${flagMarkup(team.code)}</span>
+        <span class="chip-flag">${flagEmoji(team.code)}</span>
         <span class="chip-info">
           <span class="chip-name">${escapeHtml(team.name)}</span>
           <span class="chip-meta">${team.backers.length} 人下注・佔 ${pct.toFixed(1)}%</span>
@@ -414,7 +367,7 @@
 
   function openModal(team) {
     document.getElementById("modal-filters").classList.remove("show");
-    document.getElementById("modal-flag").innerHTML = flagMarkup(team.code);
+    document.getElementById("modal-flag").textContent = flagEmoji(team.code);
     document.getElementById("modal-name").textContent = team.name;
     document.getElementById("modal-sub").textContent =
       `${team.backers.length} 人下注・總金額 ${fmtMoney(team.total)}`;
@@ -466,7 +419,7 @@
     overviewBets = [];
     lastAgg.teams.forEach((team) => {
       team.backers.forEach((b) => {
-        overviewBets.push({ ...b, teamId: team.id, teamLabel: `${flagMarkup(team.code)} ${escapeHtml(team.name)}` });
+        overviewBets.push({ ...b, teamId: team.id, teamLabel: `${flagEmoji(team.code)} ${escapeHtml(team.name)}` });
       });
     });
 
