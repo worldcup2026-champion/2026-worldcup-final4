@@ -79,12 +79,14 @@
   // support is inconsistent. Draw them as inline SVG instead so they look
   // right everywhere. Only usable where markup is inserted via innerHTML
   // (not .textContent, and not inside a native <select><option>).
+  // Square viewBox (not the flag's real 3:2 ratio) so it fills the same
+  // square badge shape the emoji flags render as (measured 1em x 1em).
   const SPECIAL_FLAG_SVG = {
     ENG:
-      '<svg class="flag-svg" viewBox="0 0 30 20" xmlns="http://www.w3.org/2000/svg" aria-label="England">' +
-      '<rect width="30" height="20" fill="#fff"/>' +
-      '<rect x="12" width="6" height="20" fill="#CE1124"/>' +
-      '<rect y="7" width="30" height="6" fill="#CE1124"/>' +
+      '<svg class="flag-svg" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" aria-label="England">' +
+      '<rect width="36" height="36" fill="#fff"/>' +
+      '<rect x="14" width="8" height="36" fill="#CE1124"/>' +
+      '<rect y="14" width="36" height="8" fill="#CE1124"/>' +
       "</svg>",
   };
 
