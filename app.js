@@ -66,8 +66,19 @@
   }
 
   // ---------- Flag emoji from ISO alpha-2 code ----------
+  // UK home nations don't have their own ISO alpha-2 code, so a regular
+  // regional-indicator flag can't represent them (that would just be the
+  // Union Jack). Use the Unicode subdivision tag-sequence flags instead.
+  const SPECIAL_FLAGS = {
+    ENG: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}", // England: St George's Cross
+    SCT: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}", // Scotland: Saltire
+    WAL: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0077}\u{E006C}\u{E0073}\u{E007F}", // Wales: Y Ddraig Goch
+  };
+
   function flagEmoji(code) {
-    if (!code || code.length !== 2) return "🏳️";
+    if (!code) return "🏳️";
+    if (SPECIAL_FLAGS[code.toUpperCase()]) return SPECIAL_FLAGS[code.toUpperCase()];
+    if (code.length !== 2) return "🏳️";
     return code
       .toUpperCase()
       .replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0)));
