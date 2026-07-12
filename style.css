@@ -627,6 +627,10 @@ body {
   color: var(--ink);
 }
 
+.filter-select-wide {
+  flex-basis: 100%;
+}
+
 .bettor-list {
   list-style: none;
   margin: 0;
